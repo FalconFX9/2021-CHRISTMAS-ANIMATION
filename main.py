@@ -39,6 +39,37 @@ def random_colors():
     file.close()
 
 
+def pandemic_sim():
+    for led in LED_LIST:
+        led.RGB = (0, 255, 0)
+
+    led = random.choice(LED_LIST)
+    led.RGB = (255, 0, 0)
+    file = open("pandemic.csv", 'w', encoding='utf-8', newline='')
+    writer = csv.writer(file, quotechar='|', quoting=csv.QUOTE_MINIMAL)
+    write_first_line(writer)
+    infected_LEDs = [led]
+    for i in range(1000):
+        if i % 20 == 0 and len(infected_LEDs) < 500:
+            new_infects = []
+            for led in infected_LEDs:
+                a, b, c = led.pos
+                for led_2 in LED_LIST:
+                    x, y, z = led_2.pos
+                    r = 0.3
+                    if (x - a)**2 + (y - b)**2 + (z - c)**2 < r **2 and led_2 not in infected_LEDs:
+                        led_2.RGB = (255, 0, 0)
+                        new_infects.append(led_2)
+            new_infects = list(set(new_infects))
+            infected_LEDs.extend(new_infects)
+
+        write_csv_line(writer, i+1)
+        print(len(infected_LEDs))
+    file.close()
+
+
+
+
 def write_csv_line(file, frame_num):
     row = [frame_num]
 
@@ -61,5 +92,5 @@ def write_first_line(file):
 
 
 if __name__ == "__main__":
-    random_colors()
+    pandemic_sim()
 
