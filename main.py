@@ -7,6 +7,8 @@ Ideas: -Game of life
 import csv
 import random
 from LED import LED
+from pandemic_LED import pandemicLED
+import constants as C
 
 
 def gen_led_obj():
@@ -23,7 +25,21 @@ def gen_led_obj():
     return list_local
 
 
-LED_LIST = gen_led_obj()
+def gen_pand_led_obj():
+    list_local = []
+    path = "coords_2021.csv"
+    file = open(path, 'r', encoding='utf-8-sig')
+    lines = csv.reader(file)
+    for i, coords in enumerate(lines):
+        for n in range(len(coords)):
+            coords[n] = float(coords[n])
+        new_led = pandemicLED(i, coords, (0, 0, 0))
+        list_local.append(new_led)
+
+    return list_local
+
+
+LED_LIST = gen_pand_led_obj()
 
 
 def random_colors():
@@ -44,41 +60,47 @@ def pandemic_sim():
         led.RGB = (0, 255, 0)
     led = random.choice(LED_LIST)
     led.RGB = (255, 0, 0)
+    led.infect_time = C.INFECT_TIME / 2
+    led.infected = True
     file = open("pandemic.csv", 'w', encoding='utf-8', newline='')
     writer = csv.writer(file, quotechar='|', quoting=csv.QUOTE_MINIMAL)
     write_first_line(writer)
     infected_LEDs = [led]
 
-    for i in range(1500):
-        if i % 20 == 0 and len(infected_LEDs) < 500:
-            not_infected_LEDs = [led for led in LED_LIST if led not in infected_LEDs]
-            new_infects = []
-            for led in infected_LEDs:
-                a, b, c = led.pos
-                for led_2 in LED_LIST:
-                    x, y, z = led_2.pos
-                    r = 0.2
-                    if (x - a)**2 + (y - b)**2 + (z - c)**2 < r **2 and led_2 not in infected_LEDs:
-                        led_2.RGB = (255, 0, 0)
-                        new_infects.append(led_2)
-                    if not new_infects:
-                        closest_led = not_infected_LEDs[0]
-                        sd = ((a * closest_led.pos[0])**2 + (b * closest_led.pos[1])**2 + (c * closest_led.pos[2])**2)**(1/2)
-                        for led_n in not_infected_LEDs:
-                            x2, y2, z2 = led_n.pos
-                            shortest_distance = ((a * x2)**2 + (b * y2)**2 + (c * z2)**2)**(1/2)
-                            if sd > shortest_distance:
-                                sd = shortest_distance
-                                closest_led = led_n
-                        closest_led.RGB = (255, 0, 0)
-                        new_infects.append(closest_led)
+    for i in range(2000):
+        not_infected_LEDs = [led for led in LED_LIST if led not in infected_LEDs]
+        new_infects = []
+        for led in infected_LEDs:
+            a, b, c = led.pos
+            for led_2 in not_infected_LEDs:
+                x, y, z = led_2.pos
+                infect_reach = 0.2
+                r = -(infect_reach/(C.INFECT_TIME/2)) * abs(led.infect_time - C.INFECT_TIME / 2) + infect_reach
+                if (x - a)**2 + (y - b)**2 + (z - c)**2 < r ** 2 and (not led_2.infected or not led_2.cured):
+                    led_2.infected = True
+                    new_infects.append(led_2)
+                if not new_infects:
+                    closest_led = not_infected_LEDs[0]
+                    sd = ((a * closest_led.pos[0])**2 + (b * closest_led.pos[1])**2 + (c * closest_led.pos[2])**2)**(1/2)
+                    for led_n in not_infected_LEDs:
+                        x2, y2, z2 = led_n.pos
+                        shortest_distance = ((a * x2)**2 + (b * y2)**2 + (c * z2)**2)**(1/2)
+                        if sd > shortest_distance:
+                            sd = shortest_distance
+                            closest_led = led_n
+                    closest_led.infected = True
+                    new_infects.append(closest_led)
 
-                        
-            new_infects = list(set(new_infects))
-            infected_LEDs.extend(new_infects)
+
+        new_infects = list(set(new_infects))
+        infected_LEDs.extend(new_infects)
+        for led in LED_LIST:
+            led.update()
+            if led.cured and led in infected_LEDs:
+                infected_LEDs.remove(led)
 
         write_csv_line(writer, i+1)
-        print(len(infected_LEDs))
+        print(i)
     file.close()
 
 
